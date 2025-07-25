@@ -44,8 +44,9 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          DB_HOST: localhost
         run: |
-          cat docker-compose.yml | envsubst > docker-compose-secret.yml
+          cat docker-compose.yml | envsubst > docker-compose-secret.yml && cat docker-compose-secret.yml
 
       - name: copy docker compose config
         run: scp docker-compose-secret.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:docker-compose.yml
@@ -60,3 +61,7 @@ jobs:
       - name: cleanup keys
         if: always()
         run: rm -rf ~/.ssh docker-compose.yml
+      
+      - name: test deployment
+        run: |
+          curl -X GET http://${{ secrets.SSH_HOST }}/posts
