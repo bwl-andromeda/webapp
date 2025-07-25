@@ -1,7 +1,7 @@
 .PHONY: build up down logs test
 
 build:
-	docker build -t webapp .
+	docker compose build
 
 up:
 	docker compose up -d
