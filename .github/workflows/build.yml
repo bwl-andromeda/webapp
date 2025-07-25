@@ -11,10 +11,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: 'Checkout GitHub Action'
-      uses: actions/checkout@main
-    - name: 'Log in to registry'
-      uses: docker/login-action
+    - uses: actions/checkout@main
+    
+    - uses: docker/login-action
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
