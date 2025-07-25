@@ -12,15 +12,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@main
-    
+
     - uses: docker/login-action
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: 'Build and Push the Docker image'
-      run: |
-        docker build . --file Dockerfile --tag webapp:$(date +%s)
-        docker push webapp:$(date +%s)
-  
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag webapp:$(date +%s)
+
+    - name: Push the Docker image
+      run: docker push ghcr.io/bwl-andromeda/webapp:$(date +%s)
