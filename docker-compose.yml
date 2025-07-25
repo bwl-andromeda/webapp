@@ -18,6 +18,9 @@ services:
 
   app:
     image: ghcr.io/bwl-andromeda/webapp:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: webapp
     depends_on:
       - db
