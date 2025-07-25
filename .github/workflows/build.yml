@@ -6,10 +6,22 @@ on:
     - main
 
 jobs:
-  build:
+
+  build-and-push:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag webapp:$(date +%s)
+    - name: 'Checkout GitHub Action'
+      uses: actions/checkout@main
+    - name: 'Log in to registry'
+      uses: docker/login-action
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 'Build and Push the Docker image'
+      run: |
+        docker build . --file Dockerfile --tag ghcr.io/bwl-andromeda/webapp:$(date +%s)
+        docker push ghcr.io/bwl-andromeda/webapp:$(date +%s)
+  
