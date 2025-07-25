@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: CI/CD
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
 
 jobs:
   build-and-push:
+    name: Сборка и публикация Docker-образа
     runs-on: ubuntu-22.04
 
     env:
@@ -14,53 +15,65 @@ jobs:
       IMAGE_TAG: ${{ github.sha }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
 
-      - name: Login
+      - name: Авторизация в GitHub Container Registry
         run: |
-          echo ${{ secrets.PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo ${{ secrets.PAT }} \
+            | docker login ghcr.io \
+                -u ${{ github.actor }} \
+                --password-stdin
 
-      - name: Build and Push
+      - name: Сборка и публикация образа
         run: |
-          docker build . -f Dockerfile -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -t ${{ env.IMAGE_NAME }}:latest
+          docker build . \
+            -f Dockerfile \
+            -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+            -t ${{ env.IMAGE_NAME }}:latest
           docker push ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           docker push ${{ env.IMAGE_NAME }}:latest
 
   deploy:
+    name: Развёртывание через SSH и Docker Compose
     runs-on: ubuntu-22.04
+    needs: build-and-push
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
 
-      - name: install ssh keys
+      - name: Установка SSH-ключей
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      
-      - name: create docker compose config
+
+      - name: Генерация конфигурации Docker Compose
         env:
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_USER:     ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_DB:       ${{ secrets.POSTGRES_DB }}
         run: |
-          cat docker-compose.yml | envsubst > docker-compose-secret.yml && cat docker-compose-secret.yml
+          envsubst < docker-compose.yml > docker-compose-secret.yml
+          cat docker-compose-secret.yml
 
-      - name: copy docker compose config
-        run: scp docker-compose-secret.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:docker-compose.yml
-
-      - name: connect and pull
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker compose down && docker compose pull && docker compose up -d && exit"
-
-      - name: cleanup config
-        if: always()
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm docker-compose.yml"
-
-      - name: cleanup keys
-        if: always()
-        run: rm -rf ~/.ssh docker-compose.yml
-      
-      - name: test deployment
+      - name: Копирование Compose-файла на сервер
         run: |
-          curl -X GET http://${{ secrets.SSH_HOST }}:8080/posts
+          scp docker-compose-secret.yml \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/docker-compose.yml
+
+      - name: Применение обновлений на сервере
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<'EOF'
+            docker compose down
+            docker compose pull
+            docker compose up -d
+            rm ~/docker-compose.yml
+          EOF
+
+      - name: Локальная очистка
+        if: always()
+        run: |
+          rm -rf ~/.ssh docker-compose.yml docker-compose-secret.yml
