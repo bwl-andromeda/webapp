@@ -12,17 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login
+      - name: Login and Build and publish
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      
-      # - uses: docker/login-action@v3
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and publish
-        run: |
           docker build . --file Dockerfile --tag webapp:latest
-          docker push webapp:latest
+          docker push ghcr.io/${{ github.actor }}/webapp:latest
